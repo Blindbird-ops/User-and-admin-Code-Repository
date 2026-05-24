@@ -1,0 +1,15 @@
+project/
+│
+├── config.py              # Configuration & Firebase setup
+├── helpers.py             # Helper functions
+├── templates.py           # Document templates
+├── word_generator.py      # Word document generation
+├── pdf_generator.py       # PDF document generation
+├── barangay_generation.py # Main monitoring script (your entry point)
+│
+├── serviceAccountKey.json
+├── assets/
+│   ├── taytay_logo.png
+│   └── pularaquen_logo.png
+└── fonts/
+    └── times.ttf

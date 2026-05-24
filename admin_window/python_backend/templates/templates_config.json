@@ -1,0 +1,86 @@
+{
+    "a46e016b-b4be-4fd5-9fc8-c17988958ce8": {
+        "name": "Barangay Clearance Templates",
+        "filename": "52b4df40_clearance_template.docx",
+        "category": "Barangay Clearance",
+        "isActive": true
+    },
+    "7b9b1240-0908-416c-a838-ad33faba812d": {
+        "name": "Barangay Clearance Correct Templates",
+        "filename": "5ee4e8f8_clearance_template.docx",
+        "category": "Barangay Clearance",
+        "isActive": false
+    },
+    "cc4a60de-6122-4ac7-ab4c-98b65681dcb4": {
+        "name": "Certificate of Indigency Template",
+        "filename": "eeb9e1b5_indigency_template.docx",
+        "category": "Certificate of Indigency",
+        "isActive": true
+    },
+    "f618c029-c62b-4c02-8afc-6fba96f4e902": {
+        "name": "Barangay Business Clearance Templates",
+        "filename": "c0656da2_business_clearance_template.docx",
+        "category": "Business Clearance",
+        "isActive": false
+    },
+    "ab69a7e6-66e8-4463-919d-054d9aa21965": {
+        "name": "Certificate of Cohabitation Templates",
+        "filename": "bfcb3ee3_cohabitation_template.docx",
+        "category": "Certificate of Cohabitation",
+        "isActive": true
+    },
+    "47ccb3a9-5ad3-4862-9f03-753b8fbdaa98": {
+        "name": "Barangay Business Clearance Correct Template",
+        "filename": "2ba28c95_business_clearance_template.docx",
+        "category": "Business Clearance",
+        "isActive": false
+    },
+    "3d13aa1e-4a52-4246-8d2c-272213d1d799": {
+        "name": "Barangay Certification Templates",
+        "filename": "e7fe5b61_certification_template.docx",
+        "category": "Barangay Certification",
+        "isActive": true
+    },
+    "4a173c89-19a6-47cb-9535-2db87ccc1653": {
+        "name": "Certificate of Seaweeds Templates",
+        "filename": "57195b68_seaweeds_template.docx",
+        "category": "Seaweeds Certification",
+        "isActive": true
+    },
+    "88548fc8-98c7-454f-a929-5e96a1a2ad90": {
+        "name": "Complaint Document Templates",
+        "filename": "bf8d37f8_complaint_template.docx",
+        "category": "Complaint",
+        "isActive": true
+    },
+    "2803ef7b-ae7f-47cb-a20a-ae985f2c7d63": {
+        "name": "Clearance Templkate",
+        "filename": "5ee3eb8e_clearance_template.docx",
+        "category": "Barangay Clearance",
+        "isActive": false
+    },
+    "1c458848-cf3e-48e4-a2e5-c119c454fc9f": {
+        "name": "Indigency Template",
+        "filename": "8cc4a111_indigency_template.docx",
+        "category": "Certificate of Indigency",
+        "isActive": false
+    },
+    "457d7a0e-1459-42d1-b88d-90bdbb07bc49": {
+        "name": "Certificate of Late Register Template",
+        "filename": "3c56de15_late_registration_template.docx",
+        "category": "Certificate of Late Registration",
+        "isActive": true
+    },
+    "779db2cc-2291-44d4-954f-1a2fb9cfa418": {
+        "name": "Clearance Templates",
+        "filename": "1f7143bd_clearance_template.docx",
+        "category": "Barangay Clearance",
+        "isActive": false
+    },
+    "ad469d4f-6edd-4363-b1f4-3da7fbbf4120": {
+        "name": "Business Clearance March 2026",
+        "filename": "a04af7c3_business_clearance_template.docx",
+        "category": "Business Clearance",
+        "isActive": true
+    }
+}

@@ -1,0 +1,579 @@
+  1: import 'dart:async';
+  2: import 'dart:convert';
+  3: import 'package:flutter/material.dart';
+  4: import 'package:firebase_auth/firebase_auth.dart';
+  5: import 'package:connectivity_plus/connectivity_plus.dart'; // Import this
+  6: import 'package:http/http.dart' as http;
+  7: import 'package:shared_preferences/shared_preferences.dart'; // Import this
+  8: import 'firebase_service.dart';
+  9: import 'admin_screen.dart';
+ 10: import 'secretary_offline_page.dart'; // Ensure you import your offline page
+ 11: 
+ 12: class LoginScreen extends StatefulWidget {
+ 13:   const LoginScreen({super.key});
+ 14: 
+ 15:   @override
+ 16:   _LoginScreenState createState() => _LoginScreenState();
+ 17: }
+ 18: 
+ 19: class _LoginScreenState extends State<LoginScreen> {
+ 20:   final TextEditingController emailController = TextEditingController();
+ 21:   final TextEditingController passwordController = TextEditingController();
+ 22:   final FirebaseService firebaseService = FirebaseService();
+ 23:   bool isLoading = false;
+ 24: 
+ 25:   @override
+ 26:   void initState() {
+ 27:     super.initState();
+ 28:     _checkAutoLoginOrOffline();
+ 29:   }
+ 30: 
+ 31:   // --- NEW: AUTO-LOGIN & OFFLINE CHECK ---
+ 32:   Future<void> _checkAutoLoginOrOffline() async {
+ 33:     // 1. Check Connectivity
+ 34:     var connectivityResult = await (Connectivity().checkConnectivity());
+ 35:     bool isOffline = connectivityResult == ConnectivityResult.none;
+ 36: 
+ 37:     final prefs = await SharedPreferences.getInstance();
+ 38:     final String? cachedToken = prefs.getString('auth_token');
+ 39:     final String? cachedUid = prefs.getString('auth_uid');
+ 40:     final String? cachedEmail = prefs.getString('auth_email');
+ 41: 
+ 42:     if (isOffline) {
+ 43:       if (cachedUid != null && mounted) {
+ 44:         _showOfflineDialog(cachedToken, cachedUid);
+ 45:       }
+ 46:     } else {
+ 47:       // --- ONLINE AUTO-LOGIN LOGIC ---
+ 48:       if (cachedToken != null && cachedUid != null && cachedEmail != null) {
+ 49:         setState(() => isLoading = true);
+ 50:         var userData = await firebaseService.fetchUserData(cachedToken);
+ 51:         
+ 52:         if (userData != null && userData.isNotEmpty) {
+ 53:           String userRole = userData['role'] ?? 'user';
+ 54:           if (userRole == 'admin') {
+ 55:             if (mounted) {
+ 56:               Navigator.pushReplacement(
+ 57:                 context,
+ 58:                 MaterialPageRoute(
+ 59:                   builder: (context) => AdminScreen(token: cachedToken, userId: cachedUid, email: cachedEmail),
+ 60:                 ),
+ 61:               );
+ 62:             }
+ 63:           } else {
+ 64:             await prefs.clear();
+ 65:             if (mounted) setState(() => isLoading = false);
+ 66:           }
+ 67:         } else {
+ 68:           await prefs.clear();
+ 69:           if (mounted) setState(() => isLoading = false);
+ 70:         }
+ 71:       }
+ 72:     }
+ 73:   }
+ 74: 
+ 75:   Future<void> _showOfflineDialog(String? token, String uid) async {
+ 76:     showDialog(
+ 77:       context: context,
+ 78:       barrierDismissible: false,
+ 79:       builder: (context) => AlertDialog(
+ 80:         title: const Text("No Internet Connection"),
+ 81:         content: const Text("You are offline. Would you like to proceed to the Secretary Portal in Offline Mode?"),
+ 82:         actions: [
+ 83:           TextButton(
+ 84:             onPressed: () => Navigator.pop(context), // Stay on login screen
+ 85:             child: const Text("Stay Here"),
+ 86:           ),
+ 87:           ElevatedButton(
+ 88:             onPressed: () {
+ 89:               Navigator.pop(context);
+ 90:               Navigator.pushReplacement(
+ 91:                 context,
+ 92:                 MaterialPageRoute(
+ 93:                   builder: (_) => SecretaryOfflinePage(firebaseToken: token, userId: uid),
+ 94:                 ),
+ 95:               );
+ 96:             },
+ 97:             child: const Text("Go Offline"),
+ 98:           ),
+ 99:         ],
+100:       ),
+101:     );
+102:   }
+103: 
+104:   // --- NEW: FORGOT PASSWORD LOGIC ---
+105:   // --- CUSTOM FORGOT PASSWORD USING YOUR CLOUD FUNCTIONS ---
+106:   Future<void> _forgotPassword() async {
+107:     final TextEditingController resetEmailController = TextEditingController();
+108:     final TextEditingController otpController = TextEditingController();
+109:     final TextEditingController newPasswordController = TextEditingController();
+110:     
+111:     // State variables for the dialog
+112:     int step = 1; // 1 = Enter Email, 2 = Enter Code & New Pass
+113:     bool isDialogLoading = false;
+114:     String? dialogError;
+115: 
+116:     // --- YOUR SPECIFIC CLOUD FUNCTION URLS ---
+117:     const String sendOtpUrl = "https://sendemailotp-wxghgf7viq-uc.a.run.app";
+118:     const String resetPasswordUrl = "https://resetpasswordwithotp-wxghgf7viq-uc.a.run.app";
+119: 
+120:     await showDialog(
+121:       context: context,
+122:       barrierDismissible: false,
+123:       builder: (context) {
+124:         return StatefulBuilder(
+125:           builder: (context, setStateDialog) {
+126:             
+127:             // --- STEP 1: SEND EMAIL ---
+128:             Future<void> handleSendOtp() async {
+129:               final email = resetEmailController.text.trim();
+130:               if (email.isEmpty) {
+131:                 setStateDialog(() => dialogError = "Please enter your email.");
+132:                 return;
+133:               }
+134: 
+135:               setStateDialog(() { isDialogLoading = true; dialogError = null; });
+136: 
+137:               try {
+138:                 // Your Cloud Function handles { data: { email: ... } } or raw { email: ... }
+139:                 // We send wrapped in 'data' to be safe with onCall functions via HTTP
+140:                 final response = await http.post(
+141:                   Uri.parse(sendOtpUrl),
+142:                   headers: {"Content-Type": "application/json"},
+143:                   body: jsonEncode({
+144:                     "data": { "email": email }
+145:                   }),
+146:                 );
+147: 
+148:                 if (response.statusCode == 200) {
+149:                   // Success: Go to Step 2
+150:                   setStateDialog(() {
+151:                     step = 2;
+152:                     isDialogLoading = false;
+153:                   });
+154:                 } else {
+155:                   // Parse error message
+156:                   setStateDialog(() {
+157:                     isDialogLoading = false;
+158:                     dialogError = "Failed: ${response.body}";
+159:                   });
+160:                 }
+161:               } catch (e) {
+162:                 setStateDialog(() {
+163:                   isDialogLoading = false;
+164:                   dialogError = "Network error. Check connection.";
+165:                 });
+166:               }
+167:             }
+168: 
+169:             // --- STEP 2: RESET PASSWORD ---
+170:             Future<void> handleResetPassword() async {
+171:               final otp = otpController.text.trim();
+172:               final newPass = newPasswordController.text.trim();
+173:               final email = resetEmailController.text.trim();
+174: 
+175:               if (otp.isEmpty || newPass.isEmpty) {
+176:                 setStateDialog(() => dialogError = "All fields are required.");
+177:                 return;
+178:               }
+179:               if (newPass.length < 6) {
+180:                 setStateDialog(() => dialogError = "Password must be at least 6 characters.");
+181:                 return;
+182:               }
+183: 
+184:               setStateDialog(() { isDialogLoading = true; dialogError = null; });
+185: 
+186:               try {
+187:                 final response = await http.post(
+188:                   Uri.parse(resetPasswordUrl),
+189:                   headers: {"Content-Type": "application/json"},
+190:                   body: jsonEncode({
+191:                     "data": {
+192:                       "email": email,
+193:                       "code": otp, // Note: Your function expects 'code', not 'otp'
+194:                       "newPassword": newPass
+195:                     }
+196:                   }),
+197:                 );
+198: 
+199:                 if (response.statusCode == 200) {
+200:                   if (mounted) {
+201:                     Navigator.pop(context); // Close Dialog
+202:                     ScaffoldMessenger.of(context).showSnackBar(
+203:                       const SnackBar(content: Text("Password updated successfully! Please log in."), backgroundColor: Colors.green),
+204:                     );
+205:                   }
+206:                 } else {
+207:                   setStateDialog(() {
+208:                     isDialogLoading = false;
+209:                     dialogError = "Error: ${response.body}";
+210:                   });
+211:                 }
+212:               } catch (e) {
+213:                 setStateDialog(() {
+214:                   isDialogLoading = false;
+215:                   dialogError = "Error: $e";
+216:                 });
+217:               }
+218:             }
+219: 
+220:             return AlertDialog(
+221:               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+222:               title: Text(step == 1 ? "Reset Password" : "Verify & Update"),
+223:               content: ConstrainedBox(
+224:                 constraints: const BoxConstraints(minWidth: 350, maxWidth: 400),
+225:                 child: Column(
+226:                   mainAxisSize: MainAxisSize.min,
+227:                   children: [
+228:                     if (step == 1) ...[
+229:                       const Text("Enter your email address. We will send you a verification code via Gmail."),
+230:                       const SizedBox(height: 15),
+231:                       TextField(
+232:                         controller: resetEmailController,
+233:                         decoration: _inputDecoration("Email Address", Icons.email),
+234:                       ),
+235:                     ],
+236:                     
+237:                     if (step == 2) ...[
+238:                       Container(
+239:                         padding: const EdgeInsets.all(8),
+240:                         color: Colors.green.withOpacity(0.1),
+241:                         child: Text("Code sent to ${resetEmailController.text}", style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold)),
+242:                       ),
+243:                       const SizedBox(height: 15),
+244:                       TextField(
+245:                         controller: otpController,
+246:                         decoration: _inputDecoration("Enter Code", Icons.lock_clock),
+247:                         keyboardType: TextInputType.number,
+248:                       ),
+249:                       const SizedBox(height: 15),
+250:                       TextField(
+251:                         controller: newPasswordController,
+252:                         decoration: _inputDecoration("New Password", Icons.key),
+253:                         obscureText: true,
+254:                       ),
+255:                     ],
+256: 
+257:                     if (dialogError != null)
+258:                       Padding(
+259:                         padding: const EdgeInsets.only(top: 10.0),
+260:                         child: Text(dialogError!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+261:                       ),
+262:                   ],
+263:                 ),
+264:               ),
+265:               actions: [
+266:                 if (!isDialogLoading)
+267:                   TextButton(
+268:                     onPressed: () => Navigator.pop(context),
+269:                     child: const Text("Cancel"),
+270:                   ),
+271:                 
+272:                 if (isDialogLoading)
+273:                   const Padding(
+274:                     padding: EdgeInsets.symmetric(horizontal: 20),
+275:                     child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+276:                   )
+277:                 else
+278:                   ElevatedButton(
+279:                     onPressed: step == 1 ? handleSendOtp : handleResetPassword,
+280:                     style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade900, foregroundColor: Colors.white),
+281:                     child: Text(step == 1 ? "Send Code" : "Update Password"),
+282:                   ),
+283:               ],
+284:             );
+285:           },
+286:         );
+287:       },
+288:     );
+289:   }
+290:   
+291:   void _login() async {
+292:     if (!mounted) return;
+293: 
+294:     setState(() => isLoading = true);
+295: 
+296:     try {
+297:       final emailInput = emailController.text.trim();
+298:       final passwordInput = passwordController.text.trim();
+299: 
+300:       // 1. Sign in via REST API
+301:       String? token = await firebaseService.signIn(emailInput, passwordInput);
+302: 
+303:       if (!mounted) return;
+304: 
+305:       if (token != null) {
+306:         // 2. Sign in via Native SDK (Optional but good for Storage)
+307:         try {
+308:           await FirebaseAuth.instance.signInWithEmailAndPassword(
+309:             email: emailInput,
+310:             password: passwordInput,
+311:           );
+312:         } catch (e) {
+313:           print("Native Auth Warning: $e");
+314:         }
+315: 
+316:         // 3. Fetch User Data
+317:         var userData = await firebaseService.fetchUserData(token);
+318:         if (userData != null && userData.isNotEmpty) {
+319:           String userRole = userData['role'] ?? 'user';
+320:           String uid = userData['uid'] ?? '';
+321:           String email = userData['email'] ?? '';
+322: 
+323:           if (userRole != 'admin') {
+324:              ScaffoldMessenger.of(context).showSnackBar(
+325:               const SnackBar(
+326:                 content: Text("Access denied. You must be an admin to log in."),
+327:                 backgroundColor: Colors.red,
+328:               ),
+329:             );
+330:             setState(() => isLoading = false);
+331:             return;
+332:           }
+333: 
+334:           // --- SAVE CREDENTIALS FOR AUTO-LOGIN ---
+335:           final prefs = await SharedPreferences.getInstance();
+336:           await prefs.setString('auth_token', token);
+337:           await prefs.setString('auth_uid', uid);
+338:           await prefs.setString('auth_email', email);
+339:           // ---------------------------------------
+340: 
+341:           await firebaseService.recordLog(token, "$email logged in", role: userRole);
+342:           await firebaseService.cleanOldLogs(token);
+343: 
+344:           Navigator.pushReplacement(
+345:             context,
+346:             MaterialPageRoute(
+347:               builder: (context) => AdminScreen(token: token, userId: uid, email: email,),
+348:             ),
+349:           );
+350:         } else {
+351:           setState(() => isLoading = false);
+352:           ScaffoldMessenger.of(context).showSnackBar(
+353:             const SnackBar(content: Text("Login Failed: Could not fetch user data.")),
+354:           );
+355:         }
+356:       } else {
+357:         setState(() => isLoading = false);
+358:         ScaffoldMessenger.of(context).showSnackBar(
+359:           const SnackBar(content: Text("Login Failed: Invalid token received.")),
+360:         );
+361:       }
+362:     } catch (e) {
+363:       if (!mounted) return;
+364:       setState(() => isLoading = false);
+365:       ScaffoldMessenger.of(context).showSnackBar(
+366:         SnackBar(content: Text(e.toString())),
+367:       );
+368:     }
+369:   }
+370: 
+371:   InputDecoration _inputDecoration(String label, IconData icon) {
+372:     return InputDecoration(
+373:       labelText: label,
+374:       prefixIcon: Icon(icon, color: Colors.blue.shade800),
+375:       filled: true,
+376:       fillColor: Colors.white,
+377:       contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
+378:       border: OutlineInputBorder(
+379:         borderRadius: BorderRadius.circular(12),
+380:         borderSide: BorderSide(color: Colors.blue.shade700.withOpacity(0.4)),
+381:       ),
+382:       enabledBorder: OutlineInputBorder(
+383:         borderRadius: BorderRadius.circular(12),
+384:         borderSide: BorderSide(color: Colors.blue.shade700.withOpacity(0.35)),
+385:       ),
+386:       focusedBorder: OutlineInputBorder(
+387:         borderRadius: BorderRadius.circular(12),
+388:         borderSide: BorderSide(color: Colors.blue.shade900, width: 2),
+389:       ),
+390:     );
+391:   }
+392: 
+393:   Widget _featureItem(IconData icon, String label) {
+394:     return Padding(
+395:       padding: const EdgeInsets.symmetric(vertical: 8.0),
+396:       child: Row(
+397:         children: [
+398:           Container(
+399:             decoration: BoxDecoration(
+400:               color: Colors.white24,
+401:               borderRadius: BorderRadius.circular(8),
+402:             ),
+403:             padding: const EdgeInsets.all(8),
+404:             child: Icon(icon, color: Colors.white, size: 18),
+405:           ),
+406:           const SizedBox(width: 12),
+407:           Expanded(
+408:             child: Text(label, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+409:           ),
+410:         ],
+411:       ),
+412:     );
+413:   }
+414: 
+415:   Widget _buildLeftPanel(double height) {
+416:     return Container(
+417:       height: height,
+418:       padding: const EdgeInsets.all(28),
+419:       decoration: BoxDecoration(
+420:         borderRadius: BorderRadius.circular(16),
+421:         color: Colors.white.withOpacity(0.04),
+422:       ),
+423:       child: Column(
+424:         crossAxisAlignment: CrossAxisAlignment.start,
+425:         children: [
+426:           const Text(
+427:             'Welcome Back',
+428:             style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+429:           ),
+430:           const SizedBox(height: 8),
+431:           const Text(
+432:             'Secretary Portal',
+433:             style: TextStyle(fontSize: 16, color: Colors.white70),
+434:           ),
+435:           const SizedBox(height: 22),
+436:           _featureItem(Icons.calendar_today_outlined, 'Manage document request and appointments'),
+437:           _featureItem(Icons.people_alt_outlined, 'Application available offline'),
+438:           _featureItem(Icons.note_alt_outlined, 'Manage complaints and resident verification'),
+439:           const Spacer(),
+440:           const Text(
+441:             'Need help? Contact admin',
+442:             style: TextStyle(color: Colors.white60, fontSize: 12),
+443:           ),
+444:         ],
+445:       ),
+446:     );
+447:   }
+448: 
+449:   Widget _buildFormCard(double width) {
+450:     return Card(
+451:       elevation: 12,
+452:       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+453:       child: Container(
+454:         width: width,
+455:         padding: const EdgeInsets.all(28),
+456:         child: Column(
+457:           mainAxisSize: MainAxisSize.min,
+458:           children: [
+459:             Image.asset(
+460:               'assets/LOGO transparent.png',
+461:               width: 190,
+462:               height: 180,
+463:               fit: BoxFit.contain,
+464:             ),
+465:             const SizedBox(height: 6),
+466:             Text(
+467:               "Sign in to your account",
+468:               style: TextStyle(
+469:                 fontSize: 20,
+470:                 fontWeight: FontWeight.w700,
+471:                 color: Colors.blue.shade900,
+472:               ),
+473:             ),
+474:             const SizedBox(height: 18),
+475:             TextField(
+476:               controller: emailController,
+477:               decoration: _inputDecoration("Email", Icons.email_outlined),
+478:               keyboardType: TextInputType.emailAddress,
+479:             ),
+480:             const SizedBox(height: 14),
+481:             TextField(
+482:               controller: passwordController,
+483:               obscureText: true,
+484:               decoration: _inputDecoration("Password", Icons.lock_outline),
+485:             ),
+486:             
+487:             // --- NEW: FORGOT PASSWORD BUTTON ---
+488:             Align(
+489:               alignment: Alignment.centerRight,
+490:               child: TextButton(
+491:                 onPressed: _forgotPassword,
+492:                 child: Text(
+493:                   "Forgot Password?",
+494:                   style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.w600),
+495:                 ),
+496:               ),
+497:             ),
+498:             // -----------------------------------
+499: 
+500:             const SizedBox(height: 10),
+501:             isLoading
+502:                 ? CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(Colors.blue.shade700))
+503:                 : SizedBox(
+504:                     width: double.infinity,
+505:                     height: 52,
+506:                     child: ElevatedButton(
+507:                       onPressed: _login,
+508:                       style: ElevatedButton.styleFrom(
+509:                         backgroundColor: Colors.blue.shade900,
+510:                         foregroundColor: Colors.white,
+511:                         elevation: 6,
+512:                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+513:                       ),
+514:                       child: const Text(
+515:                         "SIGN IN",
+516:                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+517:                       ),
+518:                     ),
+519:                   ),
+520:             const SizedBox(height: 14),
+521:           ],
+522:         ),
+523:       ),
+524:     );
+525:   }
+526: 
+527:   @override
+528:   Widget build(BuildContext context) {
+529:     return Scaffold(
+530:       body: Container(
+531:         width: double.infinity,
+532:         height: double.infinity,
+533:         decoration: BoxDecoration(
+534:           gradient: LinearGradient(
+535:             colors: [
+536:               Colors.blue.shade900,
+537:               Colors.blue.shade600,
+538:               Colors.blue.shade300,
+539:             ],
+540:             stops: const [0.0, 0.45, 1.0],
+541:             begin: Alignment.topLeft,
+542:             end: Alignment.bottomRight,
+543:           ),
+544:         ),
+545:         child: LayoutBuilder(
+546:           builder: (context, constraints) {
+547:             final isWide = constraints.maxWidth >= 900;
+548:             final containerHeight = isWide ? 520.0 : null;
+549: 
+550:             return Center(
+551:               child: SingleChildScrollView(
+552:                 padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 28),
+553:                 child: ConstrainedBox(
+554:                   constraints: BoxConstraints(maxWidth: isWide ? 1100 : 420),
+555:                   child: isWide
+556:                       ? Row(
+557:                           crossAxisAlignment: CrossAxisAlignment.center,
+558:                           children: [
+559:                             Expanded(
+560:                               flex: 5,
+561:                               child: _buildLeftPanel(containerHeight ?? 480),
+562:                             ),
+563:                             const SizedBox(width: 24),
+564:                             Expanded(
+565:                               flex: 5,
+566:                               child: _buildFormCard(420),
+567:                             ),
+568:                           ],
+569:                         )
+570:                       : _buildFormCard(420),
+571:                 ),
+572:               ),
+573:             );
+574:           },
+575:         ),
+576:       ),
+577:     );
+578:   }
+579: }

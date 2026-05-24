@@ -1,0 +1,2 @@
+C:/flutterproject/mabs/android/app/.cxx/RelWithDebInfo/702t4qh3/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/flutterproject/mabs/android/app/.cxx/RelWithDebInfo/702t4qh3/armeabi-v7a/CMakeFiles/rebuild_cache.dir

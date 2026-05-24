@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "211475802277",
+    "firebase_url": "https://mabskie-47c24-default-rtdb.firebaseio.com",
+    "project_id": "mabskie-47c24",
+    "storage_bucket": "mabskie-47c24.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:211475802277:android:6a53feb33bf39880d4c54c",
+        "android_client_info": {
+          "package_name": "com.example.mabs"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAi5DWMZtLbC9XA218_2RdS1jZjF13kUoo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

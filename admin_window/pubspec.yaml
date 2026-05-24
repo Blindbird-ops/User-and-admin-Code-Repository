@@ -1,0 +1,86 @@
+name: admin_window
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.6.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  firebase_core: ^3.11.0
+  firebase_database: ^11.3.2
+  http: ^1.3.0
+  intl: ^0.17.0
+  printing: ^5.9.0
+  pdf: ^3.9.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.0.15
+  connectivity_plus: ^5.0.2
+  uuid: ^3.0.7
+  cloudinary_public: ^0.23.1
+  firebase_auth: ^5.7.0
+  url_launcher: ^6.3.2
+  shared_preferences: ^2.5.3
+  fl_chart: ^1.1.1
+  file_saver: ^0.3.1
+  encrypt: ^5.0.3
+  image_picker: ^1.2.0
+  flutter_launcher_icons: ^0.13.1
+  open_file: ^3.3.2
+  docx_template: ^0.4.0
+  window_manager: ^0.5.1
+  graphview: ^1.5.1
+  bitsdojo_window: ^0.1.6
+  firebase_storage: ^12.4.10
+  cached_network_image: ^3.3.1
+  audioplayers: ^6.5.1
+  showcaseview: ^5.0.1
+  file_picker: ^10.3.10
+  webview_windows: ^0.4.0
+  google_generative_ai: ^0.4.7
+  
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/taytay_logo.png
+    - assets/pularaquen_logo.png
+    - assets/pularaquen_logo-removebg.png
+    - assets/clearance.png
+    - assets/business_clearance.png
+    - assets/barangay_indigent.png
+    - assets/seaweeds.png
+    - assets/cohabitation.png
+    - assets/clearance.png
+    - assets/certification_late_registration.png
+    - assets/certification.png
+    - assets/templates/barangay_clearance.docx
+    - assets/LOGO transparent.png
+    - assets/sounds/notification.mp3
+
+  fonts:
+    - family: TimesNewRoman
+      fonts:
+        - asset: assets/times.ttf
+        - asset: assets/timesbd.ttf
+          weight: 700
+        - asset: assets/timesi.ttf
+          style: italic
+        - asset: assets/timesbi.ttf
+          weight: 700
+          style: italic
+
+flutter_launcher_icons:
+  # The image you want to use as the source (must be a PNG)
+  image_path: "assets/icon/app_icon.png" # IMPORTANT: Create this folder and place your PNG here
+  windows:
+    generate: true
