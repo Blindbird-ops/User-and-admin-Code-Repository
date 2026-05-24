@@ -8,7 +8,7 @@ The system is divided into two main applications, built using **Flutter**:
 
 ---
 
-## 📱 1. MABS (Mobile Application for Barangay Services)
+## 📱 1. BaSe(Barangay Services)
 **Folder:** `mabs`
 
 BaSe is the dedicated mobile application for the **Residents**. 
